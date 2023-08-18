@@ -1,4 +1,5 @@
 mod utils;
+mod fluid;
 
 use wasm_bindgen::prelude::*;
 
@@ -9,5 +10,5 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn greet() {
-    alert("Hello, wasm-fluid!");
+    alert("Hello, wasm-fluid! lol");
 }
