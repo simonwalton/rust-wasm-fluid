@@ -26,9 +26,12 @@ const mouseClickHandler = (event) => {
     const y = event.pageY - rect.y;
 
     const sourceU = fluid.source_u();
-    sourceU[canvasCoordToArrayAddr(x, y)] += 0.5;
 
-    console.log("add")
+    for(var xp=x-3; xp < x+3; xp++) {
+        for(var yp=y-3; yp < y+3; yp++) {
+            sourceU[canvasCoordToArrayAddr(xp, yp)] += 1.0;
+        }
+    }
 }
 
 canvas.addEventListener("mousedown", mouseClickHandler);
@@ -41,22 +44,21 @@ const renderLoop = () => {
     for(var i = 0; i < arraySize; i++)
         sourceU[i] = 0.0;
         
-    console.log("Tick")
-
-    requestAnimationFrame(renderLoop);
+    setTimeout(() => {
+        requestAnimationFrame(renderLoop);
+      }, 1000 / 30);
 }
 
 const drawCells = () => {
     const cells = fluid.density();
     ctx.beginPath();
 
-    console.log(fluid.source_u().slice(0, 2));
-
     for(var y = 0; y < fluid.height(); y++) {
         for(var x = 0; x < fluid.width(); x++) {
-            const colour = cells[(y * fluid.width()) + x];
+            const cell = cells[(y * fluid.width()) + x];
+            const colour = parseInt(cell * 255);
 
-            ctx.fillStyle = "#" + (new Number(colour * 255)).toString(16).padStart(2, '0') + "0000";
+            ctx.fillStyle = "#" + colour.toString(16).padStart(2, '0') + "0000";
             ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         }
     }
