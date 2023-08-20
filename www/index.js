@@ -17,32 +17,44 @@ const canvasCoordToArrayAddr = (x, y) => {
     const x0 = parseInt(x / cellSize);
     const y0 = parseInt(y / cellSize);
 
-    return clamp((y0 * fluid.width()) + x0, 0, arraySize);
+    return clamp((y0 * fluid.width()) + x0, 0, arraySize-1);
 }
+
+var lastX = undefined;
+var lastY = undefined;
 
 const mouseClickHandler = (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = event.pageX - rect.x;
     const y = event.pageY - rect.y;
+    console.log("mouse move")
 
-    const sourceU = fluid.source_u();
+    if(lastX && lastY) {
+        const sourceU = fluid.source_u();
+        const sourceV = fluid.source_v();
 
-    for(var xp=x-3; xp < x+3; xp++) {
-        for(var yp=y-3; yp < y+3; yp++) {
-            sourceU[canvasCoordToArrayAddr(xp, yp)] += 1.0;
+        const dx = x - lastX;
+        const dy = y - lastY;
+
+        for(var xp=x-8; xp < x+8; xp++) {
+            for(var yp=y-8; yp < y+8; yp++) {
+                const i = canvasCoordToArrayAddr(xp, yp);
+                console.log(xp, yp, i);
+                sourceU[i] = dx;
+                sourceV[i] = dy;
+            }
         }
     }
+
+    lastX = x;
+    lastY = y;
 }
 
-canvas.addEventListener("mousedown", mouseClickHandler);
+canvas.addEventListener("mousemove", mouseClickHandler);
 
 const renderLoop = () => {
     fluid.tick();
     drawCells();
-
-    const sourceU = fluid.source_u();
-    for(var i = 0; i < arraySize; i++)
-        sourceU[i] = 0.0;
         
     setTimeout(() => {
         requestAnimationFrame(renderLoop);
