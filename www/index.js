@@ -13,21 +13,17 @@ const ctx = canvas.getContext('2d');
 
 const clamp = (n, a, b) => Math.min(Math.max(a, n), b);
 
-const canvasCoordToArrayAddr = (x, y) => {
-    const x0 = parseInt(x / cellSize);
-    const y0 = parseInt(y / cellSize);
+const fluidCoordToArrayAddr = (x, y) => 
+    parseInt(clamp((Math.floor(y) * fluid.width()) + Math.floor(x), 0, arraySize-1));
 
-    return clamp((y0 * fluid.width()) + x0, 0, arraySize-1);
-}
+const canvasCoordToFluidCoord = (x, y) => [x / cellSize, y / cellSize];
 
 var lastX = undefined;
 var lastY = undefined;
 
-const mouseClickHandler = (event) => {
+const mouseMoveHandler = (event) => {
     const rect = canvas.getBoundingClientRect();
-    const x = event.pageX - rect.x;
-    const y = event.pageY - rect.y;
-    console.log("mouse move")
+    const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
 
     if(lastX && lastY) {
         const sourceU = fluid.source_u();
@@ -36,12 +32,11 @@ const mouseClickHandler = (event) => {
         const dx = x - lastX;
         const dy = y - lastY;
 
-        for(var xp=x-8; xp < x+8; xp++) {
-            for(var yp=y-8; yp < y+8; yp++) {
-                const i = canvasCoordToArrayAddr(xp, yp);
-                console.log(xp, yp, i);
-                sourceU[i] = dx;
-                sourceV[i] = dy;
+        for(var xp=x-2; xp < x+2; xp++) {
+            for(var yp=y-2; yp < y+2; yp++) {
+                const i = fluidCoordToArrayAddr(xp, yp);
+                sourceU[i] += clamp(dx, -1, 1)
+                sourceV[i] += clamp(dy, -1, 1);
             }
         }
     }
@@ -50,7 +45,21 @@ const mouseClickHandler = (event) => {
     lastY = y;
 }
 
-canvas.addEventListener("mousemove", mouseClickHandler);
+const mouseClickHandler = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
+
+    const density = fluid.d0();
+
+    for(var xp=x-2; xp < x+2; xp++) {
+        for(var yp=y-2; yp < y+2; yp++) {
+            density[fluidCoordToArrayAddr(xp, yp)] = 1.0;
+        }
+    }
+}
+
+canvas.addEventListener("mousemove", mouseMoveHandler);
+canvas.addEventListener("click", mouseClickHandler);
 
 const renderLoop = () => {
     fluid.tick();
@@ -62,7 +71,7 @@ const renderLoop = () => {
 }
 
 const drawCells = () => {
-    const cells = fluid.density();
+    const cells = fluid.d();
     ctx.beginPath();
 
     for(var y = 0; y < fluid.height(); y++) {
