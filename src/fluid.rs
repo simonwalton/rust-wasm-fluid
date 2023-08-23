@@ -13,15 +13,15 @@ const AREA: usize = (WIDTH * HEIGHT) as usize;
 pub struct Fluid {
     width: u32,
     height: u32,
-    u: [f32; AREA],
-    u0: [f32; AREA],
-    v: [f32; AREA],
-    v0:[f32; AREA],
-    d: [f32; AREA],
-    d0: [f32; AREA],
+    u: Vec<f32>,
+    u0: Vec<f32>,
+    v: Vec<f32>,
+    v0:Vec<f32>,
+    d: Vec<f32>,
+    d0: Vec<f32>,
 }
 
-fn add_array(a: &mut[f32; AREA], b: &mut [f32; AREA]) {
+fn add_array(a: &mut Vec<f32>, b: &mut Vec<f32>) {
     for i in 0..AREA {
         a[i] = clamp(a[i] + b[i]);
     }
@@ -52,12 +52,13 @@ impl Fluid {
     pub fn new() -> Fluid {
         let width = WIDTH;
         let height = HEIGHT;
-        let mut d0: [f32; AREA] = [0.0f32; AREA];
+        let mut d0: Vec<f32> = vec![0.0f32; AREA];
+        println!("The area is {AREA}");
 
-        for j in 1..HEIGHT-2 {
-            for i in 1..WIDTH-2 {
+        for j in 1..HEIGHT-1 {
+            for i in 1..WIDTH-1 {
                 if i > 40 && j > 40 && i < 60 && j < 60 {
-                    d0[addr(i,j)] = 0.5f32;
+                    d0[addr(i,j)] = 1.0f32;
                 }
                 else {
                     d0[addr(i,j)] = 0.25f32;
@@ -65,11 +66,11 @@ impl Fluid {
             }
         }
 
-        let mut u = [0.0f32; AREA];
-        let mut u0 = [0.0f32; AREA];
-        let mut v = [0.0f32; AREA];
-        let mut v0 = [0.0f32; AREA];
-        let mut d = [0.0f32; AREA];//.copy();//[0.0f32; AREA];
+        let mut u = vec![0.0f32; AREA];
+        let mut u0 = vec![0.0f32; AREA];
+        let mut v = vec![0.0f32; AREA];
+        let mut v0 = vec![0.0f32; AREA];
+        let mut d = vec![0.0f32; AREA];
             
         Fluid {
             width,
@@ -107,7 +108,7 @@ impl Fluid {
         unsafe { Float32Array::view(&self.v0) }
     }
 
-    fn diffuse(x0: &mut[f32; AREA], x: &mut [f32; AREA]) {
+    fn diffuse(x0: &mut Vec<f32>, x: &mut Vec<f32>) {
         let dt = 0.001f32;
         let diff = 0.001f32;
         let a = dt * diff * (WIDTH * HEIGHT) as f32;
@@ -119,17 +120,18 @@ impl Fluid {
                     x[addr(i,j)] = clamp((x0[addr(i,j)] + a * neighbours) / (1.0f32+4.0f32*a));
                 }
             }
+            Fluid::set_boundary(x)
         }
     }
 
-    fn advect(d0: &mut[f32; AREA], d: &mut[f32; AREA], u: &mut[f32; AREA], v: &mut[f32; AREA]) {
+    fn advect(d0: &Vec<f32>, d: &mut Vec<f32>, u: &Vec<f32>, v: &Vec<f32>) {
         let dt = 0.001f32;
         let dt0 = dt * WIDTH as f32;
 
         for j in 1..HEIGHT-1 {
             for i in 1..WIDTH-1 { 
-                let xp = clampAB(i as f32 - dt0 * u[addr(i,j)], 1.5f32, WIDTH as f32 - 1.5f32);
-                let yp = clampAB(j as f32 - dt0 * v[addr(i,j)], 1.5f32, HEIGHT as f32 - 1.5f32);
+                let xp = clampAB(i as f32 - dt0 * u[addr(i,j)], 1.5f32, WIDTH as f32 - 2.5f32);
+                let yp = clampAB(j as f32 - dt0 * v[addr(i,j)], 1.5f32, HEIGHT as f32 - 2.5f32);
                 let x0 = xp.floor() as u32; let x1 = x0 + 1;
                 let y0 = yp.floor() as u32; let y1 = y0 + 1;
 
@@ -140,9 +142,25 @@ impl Fluid {
                 ))
             }
         }
+
+        Fluid::set_boundary(d)
     }
 
-    fn density_tick(x0: &mut[f32; AREA], x: &mut [f32; AREA], u: &mut[f32; AREA], v: &mut[f32; AREA]) {
+    fn set_boundary(x: &mut Vec<f32>) {
+        let N = WIDTH;
+        for i in 1..N {
+            x[addr(0, i)] = x[addr(1,i)];
+            x[addr(N-1, i)] = x[addr(N-2,i)];
+            x[addr(i, 0)] = x[addr(i, 1)];
+            x[addr(i, N-1)] = x[addr(i,N-2)];
+        }
+        x[addr(0,0)] = 0.5 * (x[addr(1,0)] + x[addr(0,1)]);
+        x[addr(N-1,0)] = 0.5 * (x[addr(N-2,0)] + x[addr(N-1,1)]);
+        x[addr(0,N-1)] = 0.5 * (x[addr(0,N-2)] + x[addr(1,N-1)]);
+        x[addr(N-1,N-1)] = 0.5 * (x[addr(N-1,N-2)] + x[addr(N-2,N-1)]);
+    }
+
+    fn density_tick(x0: &mut Vec<f32>, x: &mut Vec<f32>, u: &Vec<f32>, v: &Vec<f32>) {
         add_array(x, x0);
         std::mem::swap(x0, x);
         Fluid::diffuse(x0, x);
@@ -150,7 +168,7 @@ impl Fluid {
         Fluid::advect(x0, x, u, v);
     }
 
-    fn velocity_tick(u0: &mut[f32; AREA], v0: &mut [f32; AREA], u: &mut[f32; AREA], v: &mut[f32; AREA]) {
+    fn velocity_tick(u0: &mut Vec<f32>, v0: &mut Vec<f32>, u: &mut Vec<f32>, v: &mut Vec<f32>) {
         add_array(u, u0);
         add_array(v, v0);
         std::mem::swap(u0, u);
@@ -159,14 +177,16 @@ impl Fluid {
         Fluid::diffuse(v0, v);
         std::mem::swap(u0, u);
         std::mem::swap(v0, v);
+        Fluid::advect(u, u0, &u0.clone(), v0);
+        Fluid::advect(v, v0, u0, &v0.clone());
     }
 
     pub fn tick(&mut self) {
         Fluid::velocity_tick(&mut self.u0, &mut self.v0, &mut self.u, &mut self.v);
         Fluid::density_tick(&mut self.d0, &mut self.d, &mut self.u, &mut self.v);
 
-        self.d0 = [0.0f32; AREA];
-        self.u0 = [0.0f32; AREA];
-        self.v0 = [0.0f32; AREA];
+        self.d0 = vec![0.0f32; AREA];
+        self.u0 = vec![0.0f32; AREA];
+        self.v0 = vec![0.0f32; AREA];
     }
 }
