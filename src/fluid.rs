@@ -113,7 +113,7 @@ impl Fluid {
         let diff = 0.001f32;
         let a = dt * diff * (WIDTH * HEIGHT) as f32;
 
-        for k in 0..3 {
+        for k in 0..10 {
             for j in 1..HEIGHT-1 {
                 for i in 1..WIDTH-1 {
                     let neighbours = x[addr(i-1,j)] + x[addr(i+1,j)] + x[addr(i,j-1)] + x[addr(i,j+1)];

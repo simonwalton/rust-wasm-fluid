@@ -2,25 +2,36 @@ import { Fluid } from "wasm-fluid";
 import { memory } from "wasm-fluid/wasm_fluid_bg"
 
 const fluid = Fluid.new();
-const cellSize = 8;
 
 const paintBrushSize = 16;
 
 const canvas = document.getElementById("fluid-canvas");
-canvas.width = fluid.width() * cellSize;
-canvas.height = fluid.height() * cellSize;
+const [canvasWidth, canvasHeight] = [canvas.offsetWidth, canvas.offsetHeight];
 const arraySize = fluid.width() * fluid.height();
+const [cellSizeX, cellSizeY] = [canvasWidth / fluid.width(), canvasHeight / fluid.height()];
 
-const colourMap = ['#ffffd9','#edf8b1','#c7e9b4','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84'];
+const colourMap = [
+    [255,255,217],
+    [237,248,177],
+    [199,233,180],
+    [127,205,187],
+    [65,182,196],
+    [29,145,192],
+    [34,94,168],
+    [12,44,132]
+];
 
 const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = true;
+
+const displayImage = ctx.createImageData(fluid.width(), fluid.height());
 
 const clamp = (n, a, b) => Math.min(Math.max(a, n), b);
 
 const fluidCoordToArrayAddr = (x, y) => 
     parseInt(clamp((Math.floor(y) * fluid.width()) + Math.floor(x), 0, arraySize-1));
 
-const canvasCoordToFluidCoord = (x, y) => [x / cellSize, y / cellSize];
+const canvasCoordToFluidCoord = (x, y) => [x / cellSizeX, y / cellSizeY];
 
 var lastX = undefined;
 var lastY = undefined;
@@ -58,6 +69,8 @@ const mouseMoveHandler = (event) => {
 const mouseClickHandler = (event) => {
     const rect = canvas.getBoundingClientRect();
     const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
+    console.log(event.pageX - rect.x, event.pageY - rect.y);
+    console.log(x,y);
     const halfBrush = parseInt(paintBrushSize / 2);
     const density = fluid.d0();
 
@@ -89,18 +102,18 @@ const renderLoop = () => {
 
 const drawCells = () => {
     const cells = fluid.d();
-    ctx.beginPath();
+    const N = fluid.width();
 
-    for(var y = 0; y < fluid.height(); y++) {
-        for(var x = 0; x < fluid.width(); x++) {
-            const cell = cells[(y * fluid.width()) + x];
-
-            ctx.fillStyle = normalisedDensityToColour(cell);
-            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        }
+    var p = 0; 
+    for(var i = 0; i < arraySize; i++) { 
+        let [r,g,b] = normalisedDensityToColour(cells[i]);
+        displayImage.data[p++] = r;
+        displayImage.data[p++] = g;
+        displayImage.data[p++] = b;
+        displayImage.data[p++] = 255;
     }
 
-    ctx.stroke();
+    ctx.putImageData(displayImage, 0, 0);
 }
 
 drawCells();
