@@ -9,8 +9,13 @@ const canvas = document.getElementById("fluid-canvas");
 const [canvasWidth, canvasHeight] = [canvas.offsetWidth, canvas.offsetHeight];
 const arraySize = fluid.width() * fluid.height();
 const [cellSizeX, cellSizeY] = [canvasWidth / fluid.width(), canvasHeight / fluid.height()];
+canvas.setAttribute("width", fluid.width());
+canvas.setAttribute("height", fluid.height());
 
 const colourMap = [
+    [255,255,217],
+    [255,255,217],
+    [255,255,217],
     [255,255,217],
     [237,248,177],
     [199,233,180],
@@ -44,7 +49,7 @@ const mouseMoveHandler = (event) => {
     const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
     const halfBrush = Math.floor(paintBrushSize / 2);
 
-    if(lastX !== undefined && distance(x, y, lastX, lastY) > 0.5) {
+    if(lastX !== undefined && distance(x, y, lastX, lastY) > 0.3) {
         const dx = x - lastX;
         const dy = y - lastY;
         const sourceU = fluid.source_u();
@@ -57,8 +62,6 @@ const mouseMoveHandler = (event) => {
                 sourceV[i] = dy;
             }
         }
-
-        console.log(dx, dy);
 
         if(mouseDown) {
             mouseClickHandler(event)

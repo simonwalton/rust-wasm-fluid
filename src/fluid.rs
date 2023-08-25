@@ -5,8 +5,8 @@ use std::cmp;
 use wasm_bindgen::prelude::*;
 use js_sys::Float32Array;
 
-const WIDTH: u32 = 100;
-const HEIGHT: u32 = 100;
+const WIDTH: u32 = 150;
+const HEIGHT: u32 = 150;
 const AREA: usize = (WIDTH * HEIGHT) as usize;
 
 #[wasm_bindgen]
@@ -53,19 +53,6 @@ impl Fluid {
         let width = WIDTH;
         let height = HEIGHT;
         let mut d0: Vec<f32> = vec![0.0f32; AREA];
-        println!("The area is {AREA}");
-
-        for j in 1..HEIGHT-1 {
-            for i in 1..WIDTH-1 {
-                if i > 40 && j > 40 && i < 60 && j < 60 {
-                    d0[addr(i,j)] = 1.0f32;
-                }
-                else {
-                    d0[addr(i,j)] = 0.25f32;
-                }
-            }
-        }
-
         let mut u = vec![0.0f32; AREA];
         let mut u0 = vec![0.0f32; AREA];
         let mut v = vec![0.0f32; AREA];
@@ -109,15 +96,15 @@ impl Fluid {
     }
 
     fn diffuse(x: &mut Vec<f32>, x0: &Vec<f32>) {
-        let dt = 0.01f32;
-        let diff = 0.01f32;
+        let dt = 0.005f32;
+        let diff = 0.005f32;
         let a = dt * diff * (WIDTH * HEIGHT) as f32;
 
-        for k in 0..20 {
+        for k in 0..10 {
             for j in 1..HEIGHT-1 {
                 for i in 1..WIDTH-1 {
                     let neighbours = x[addr(i-1,j)] + x[addr(i+1,j)] + x[addr(i,j-1)] + x[addr(i,j+1)];
-                    x[addr(i,j)] = (x0[addr(i,j)] + a * neighbours) / (1.0f32+4.0f32*a);
+                    x[addr(i,j)] = clamp((x0[addr(i,j)] + a * neighbours) / (1.0f32+4.0f32*a));
                 }
             }
             Fluid::set_boundary(x)
@@ -125,7 +112,7 @@ impl Fluid {
     }
 
     fn advect(d: &mut Vec<f32>, d0: &Vec<f32>, u: &Vec<f32>, v: &Vec<f32>) {
-        let dt = 0.01f32;
+        let dt = 0.003f32;
         let dt0 = dt * WIDTH as f32;
 
         for j in 1..HEIGHT-1 {
@@ -203,9 +190,7 @@ impl Fluid {
     fn velocity_tick(u0: &mut Vec<f32>, v0: &mut Vec<f32>, u: &mut Vec<f32>, v: &mut Vec<f32>) {
         add_array(u, u0);
         add_array(v, v0);
-        //std::mem::swap(u0, u);
         Fluid::diffuse(u0, u);
-        //std::mem::swap(v0, v);
         Fluid::diffuse(v0, v);
         Fluid::project(u, v, u0, v0);
         std::mem::swap(u0, u);
@@ -220,7 +205,7 @@ impl Fluid {
         Fluid::density_tick(&mut self.d0, &mut self.d, &mut self.u, &mut self.v);
 
         self.d0 = vec![0.0f32; AREA];
-        //self.u0 = vec![0.0f32; AREA];
-        //self.v0 = vec![0.0f32; AREA];
+        self.u0 = vec![0.0f32; AREA];
+        self.v0 = vec![0.0f32; AREA];
     }
 }
