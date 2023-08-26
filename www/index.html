@@ -23,13 +23,17 @@
         height: 100%;
       }
       .sidenav {
+        font-size: 1em;
+        zoom: 0.7;
         height: 100%;
-        width: 160px;
-        padding: 5px;
+        width: 200px;
+        padding: 15px;
         position: fixed;
         z-index: 1;
         top: 0;
         left: 0;
+        color: #333;
+        background-color: rgba(255,255,255,0.5);
         overflow-x: hidden;
         padding-top: 20px;
       }
@@ -47,14 +51,28 @@
     </noscript>
     <div class="sidenav">
         <form>
+          <p>
             <label>Colourmap</label>
             <select name="colourmap" id="colourmap">
               <option value="blues">Blues</option>
               <option value="pinks">Pinks</option>
+              <option value="redblue">Red/Blue</option>
               <option value="colourful">Colourful</option>
+              <option value="pastel">Pastel</option>
             </select>
+          </p>
+          <p>
+            <label>Colourmap interpolation</label>
+            <input type="checkbox" id="colourmapInterpolation" checked="true" />
+          </p>
+          <p>
             <label>Time step</label>
             <input id="dt" type="range" value="0.0001" step="0.0001" min="0.0001" max="0.01">
+          </p>
+          <p>
+            <label>Iterations</label>
+            <input id="iterations" type="range" value="10" step="1" min="1" max="20">
+          </p>
         </form>
     </div>
     <div class="fluid-container">

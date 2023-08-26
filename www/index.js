@@ -34,7 +34,7 @@ const normalisedDensityToColour = (x) => {
     const b = a+1;
     const d = t - a;
 
-    return [0,1,2].map(i => lerp(d, colourMap[a][i], colourMap[b][i]));
+    return [0,1,2].map(i => config.colourmapInterpolation ? lerp(d, colourMap[a][i], colourMap[b][i]) : colourMap[a][i]);
 }
 
 var lastX = undefined;
@@ -51,7 +51,10 @@ const mouseClickHandler = (event) => {
 
     for(var xp=x-halfBrush; xp < x+halfBrush; xp++) {
         for(var yp=y-halfBrush; yp < y+halfBrush; yp++) {
-            density[fluidCoordToArrayAddr(xp, yp)] = 1.0;
+            let d = distance(xp, yp, x, y);
+            if(d < halfBrush) {
+                density[fluidCoordToArrayAddr(xp, yp)] = 0.5 * (1 - (d / halfBrush));
+            }
         }
     }
 }
@@ -61,7 +64,7 @@ const mouseMoveHandler = (event) => {
     const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
     const halfBrush = Math.floor(paintBrushSize / 2);
 
-    if(lastX !== undefined && distance(x, y, lastX, lastY) > 0.3) {
+    if(lastX !== undefined && distance(x, y, lastX, lastY) > 0.01) {
         const dx = x - lastX;
         const dy = y - lastY;
         const sourceU = fluid.source_u();
@@ -69,9 +72,11 @@ const mouseMoveHandler = (event) => {
         
         for(var xp=x-halfBrush; xp < x+halfBrush; xp++) {
             for(var yp=y-halfBrush; yp < y+halfBrush; yp++) {
-                const i = fluidCoordToArrayAddr(xp, yp);
-                sourceU[i] = dx;
-                sourceV[i] = dy;
+                if(distance(xp, yp, x, y) < halfBrush) {
+                    const i = fluidCoordToArrayAddr(xp, yp);
+                    sourceU[i] = dx;
+                    sourceV[i] = dy;
+                }
             }
         }
 
@@ -117,6 +122,8 @@ canvas.addEventListener("mouseup", (e) => { mouseDown = false; })
 
 config.callback = () => {
     fluid.set_dt(config.dt);
+    fluid.set_iterations(config.iterations);
+    ctx.imageSmoothingEnabled = false;
 }
 
 config.callback();
