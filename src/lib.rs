@@ -1,6 +1,5 @@
-mod utils;
 mod fluid;
-
+mod utils;
 
 use wasm_bindgen::prelude::*;
 
