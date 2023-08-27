@@ -1,26 +1,39 @@
 import { Fluid } from "wasm-fluid";
 import config from "./config"
 
-const fluid = Fluid.new();
-
-const paintBrushSize = 16;
+let fluid;
+let paintBrushSize;
 
 const canvas = document.getElementById("fluid-canvas");
-const [canvasWidth, canvasHeight] = [canvas.offsetWidth, canvas.offsetHeight];
-const arraySize = fluid.width() * fluid.height();
-const [cellSizeX, cellSizeY] = [canvasWidth / fluid.width(), canvasHeight / fluid.height()];
-canvas.setAttribute("width", fluid.width());
-canvas.setAttribute("height", fluid.height());
-
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = true;
 
-const displayImage = ctx.createImageData(fluid.width(), fluid.height());
+const [canvasWidth, canvasHeight] = [canvas.offsetWidth, canvas.offsetHeight];
+
+let arraySize = 0;
+let [cellSizeX, cellSizeY] = [0,0];
+
+let displayImage = undefined;
+
+const initialiseFluid = () => {
+    fluid = Fluid.new(config.resolution);
+    paintBrushSize = config.resolution / 5;
+    
+    arraySize = config.resolution * config.resolution;
+    [cellSizeX, cellSizeY] = [canvasWidth / config.resolution, canvasHeight / config.resolution];
+    
+    canvas.setAttribute("width", config.resolution);
+    canvas.setAttribute("height", config.resolution);
+    
+    displayImage = ctx.createImageData(config.resolution, config.resolution);
+}
+
+initialiseFluid();
 
 const clamp = (n, a, b) => Math.min(Math.max(a, n), b);
 
 const fluidCoordToArrayAddr = (x, y) => 
-    Math.floor(clamp((Math.floor(y) * fluid.width()) + Math.floor(x), 0, arraySize-1));
+    Math.floor(clamp((Math.floor(y) * config.resolution) + Math.floor(x), 0, arraySize-1));
 
 const canvasCoordToFluidCoord = (x, y) => [x / cellSizeX, y / cellSizeY];
 
@@ -98,7 +111,7 @@ const renderLoop = () => {
 
 const drawCells = () => {
     const cells = fluid.d();
-    const N = fluid.width();
+    const N = config.resolution;
 
     var p = 0; 
     for(var i = 0; i < arraySize; i++) { 
@@ -120,10 +133,13 @@ canvas.addEventListener("click", mouseClickHandler);
 canvas.addEventListener("mousedown", (e) => { mouseDown = true; })
 canvas.addEventListener("mouseup", (e) => { mouseDown = false; })
 
-config.callback = () => {
+config.callback = (refresh = false) => {
     fluid.set_dt(config.dt);
     fluid.set_iterations(config.iterations);
     ctx.imageSmoothingEnabled = false;
+
+    if(refresh)
+        initialiseFluid();
 }
 
 config.callback();

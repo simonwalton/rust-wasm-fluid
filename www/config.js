@@ -48,7 +48,20 @@ const colourMaps = {
     ]
 };
 
+const gridResolutions = {
+    low: 100,
+    medium: 200,
+    high: 300,
+    veryhigh: 500
+}
+
 let colourMapSelector = document.getElementById("colourmap"); 
+Object.entries(colourMaps).forEach(obj => {
+    let option = document.createElement("option");
+    option.value = obj[0];
+    option.text = obj[0];
+    colourMapSelector.add(option);
+});
 colourMapSelector.addEventListener("change", function() {
     config.colourMap = colourMaps[colourMapSelector.value]
 });
@@ -71,13 +84,25 @@ iterationsSelector.addEventListener("change", function() {
     config.callback();
 });
 
+let resolutionSelector = document.getElementById("resolution");
+Object.entries(gridResolutions).forEach(obj => {
+    let option = document.createElement("option");
+    option.value = +obj[1];
+    option.text = obj[0];
+    resolutionSelector.add(option);
+});
+resolutionSelector.addEventListener("change", function() {
+    config.resolution = +resolutionSelector.value;
+    config.callback(true);
+});
 
 const config = {
     colourMap: colourMaps.blues,
     dt: 0.0001,
     colourmapInterpolation: true,
+    resolution: 100,
     iterations: 10,
-    callback: () => {},
+    callback: (refresh = false) => {},
 }
 
 export default config;
