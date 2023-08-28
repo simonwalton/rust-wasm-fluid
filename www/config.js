@@ -107,12 +107,19 @@ resolutionSelector.addEventListener("change", function() {
     config.callback(true);
 });
 
+let brushRadiusSelector = document.getElementById("brushradius");
+brushRadiusSelector.addEventListener("change", function() {
+    config.brushRadius = +brushRadiusSelector.value;
+    config.callback();
+});
+
 const config = {
     colourMap: colourMaps.blues,
-    dt: 0.0001,
+    dt: 0.001,
     colourmapInterpolation: true,
     resolution: 100,
     iterations: 10,
+    brushRadius: 10,
     callback: (refresh = false) => {},
 }
 

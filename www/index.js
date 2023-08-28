@@ -2,25 +2,18 @@ import { Fluid } from "wasm-fluid";
 import config from "./config"
 
 let fluid;
-let paintBrushSize;
 
 const canvas = document.getElementById("fluid-canvas");
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = true;
 
-const [canvasWidth, canvasHeight] = [canvas.offsetWidth, canvas.offsetHeight];
-
 let arraySize = 0;
-let [cellSizeX, cellSizeY] = [0,0];
-
 let displayImage = undefined;
 
 const initialiseFluid = () => {
     fluid = Fluid.new(config.resolution);
-    paintBrushSize = config.resolution / 5;
-    
+
     arraySize = config.resolution * config.resolution;
-    [cellSizeX, cellSizeY] = [canvasWidth / config.resolution, canvasHeight / config.resolution];
     
     canvas.setAttribute("width", config.resolution);
     canvas.setAttribute("height", config.resolution);
@@ -35,7 +28,7 @@ const clamp = (n, a, b) => Math.min(Math.max(a, n), b);
 const fluidCoordToArrayAddr = (x, y) => 
     Math.floor(clamp((Math.floor(y) * config.resolution) + Math.floor(x), 0, arraySize-1));
 
-const canvasCoordToFluidCoord = (x, y) => [x / cellSizeX, y / cellSizeY];
+const canvasCoordToFluidCoord = (x, y) => [x / (canvas.offsetWidth / config.resolution), y / (canvas.offsetHeight / config.resolution)];
 
 const lerp = (n, a, b) => a + ((b - a) * n)
 
@@ -59,7 +52,7 @@ const distance = (x0,y0,x1,y1) => Math.sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
 const mouseClickHandler = (event) => {
     const rect = canvas.getBoundingClientRect();
     const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
-    const halfBrush = Math.floor(paintBrushSize / 2);
+    const halfBrush = config.brushRadius;
     const density = fluid.d0();
 
     for(var xp=x-halfBrush; xp < x+halfBrush; xp++) {
@@ -75,8 +68,8 @@ const mouseClickHandler = (event) => {
 const mouseMoveHandler = (event) => {
     const rect = canvas.getBoundingClientRect();
     const [x, y] = canvasCoordToFluidCoord(event.pageX - rect.x, event.pageY - rect.y);
-    const halfBrush = Math.floor(paintBrushSize / 2);
-
+    const halfBrush = config.brushRadius;
+    
     if(lastX !== undefined && distance(x, y, lastX, lastY) > 0.01) {
         const dx = x - lastX;
         const dy = y - lastY;
@@ -103,6 +96,9 @@ const mouseMoveHandler = (event) => {
 }
 
 const renderLoop = () => {
+
+
+
     fluid.tick();
     drawCells();
         

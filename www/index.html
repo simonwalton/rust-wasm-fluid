@@ -51,18 +51,20 @@
     </noscript>
     <div class="sidenav">
         <form>
+          <p><strong>Output</strong></p>
           <p>
             <label>Colourmap</label>
             <select name="colourmap" id="colourmap">
             </select>
           </p>
           <p>
-            <label>Resolution</label>
-            <select name="resolution" id="resolution"></select>
-          </p>
-          <p>
             <label>Colourmap interpolation</label>
             <input type="checkbox" id="colourmapInterpolation" checked="true" />
+          </p>
+          <p><strong>Simulation</strong></p>
+          <p>
+            <label>Resolution</label>
+            <select name="resolution" id="resolution"></select>
           </p>
           <p>
             <label>Time step</label>
@@ -71,6 +73,11 @@
           <p>
             <label>Iterations</label>
             <input id="iterations" type="range" value="10" step="1" min="1" max="20">
+          </p>
+          <p><strong>Interaction</strong></p>
+          <p>
+            <label>Brush Radius</label>
+            <input id="brushradius" type="range" value="5" step="1" min="1" max="20">
           </p>
         </form>
     </div>

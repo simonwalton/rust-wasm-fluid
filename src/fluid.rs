@@ -12,7 +12,7 @@ pub struct Fluid {
     v: Vec<f32>,        // vector field v component
     v0: Vec<f32>,       // vector field v component (alternate)
     d: Vec<f32>,        // density field
-    d0: Vec<f32>,       // density field (alternate)
+    d0: Vec<f32>        // density field (alternate),
 }
 
 fn add_array(a: &mut [f32], b: &[f32]) {
