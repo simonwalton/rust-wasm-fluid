@@ -1,19 +1,18 @@
-use std::{u32, default};
-
+use std::u32;
 use js_sys::Float32Array;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Fluid {
-    dt: f32,
-    iterations: u32,
-    resolution: u32,
-    u: Vec<f32>,
-    u0: Vec<f32>,
-    v: Vec<f32>,
-    v0: Vec<f32>,
-    d: Vec<f32>,
-    d0: Vec<f32>,
+    dt: f32,            // time difference per tick
+    iterations: u32,    // number of iterations for diffusion and projection steps
+    resolution: u32,    // grid resolution (n*n; square)
+    u: Vec<f32>,        // vector field u component
+    u0: Vec<f32>,       // vector field u component (alternate)
+    v: Vec<f32>,        // vector field v component
+    v0: Vec<f32>,       // vector field v component (alternate)
+    d: Vec<f32>,        // density field
+    d0: Vec<f32>,       // density field (alternate)
 }
 
 fn add_array(a: &mut [f32], b: &[f32]) {
@@ -41,11 +40,12 @@ fn clamp_ab(x: f32, a: f32, b: f32) -> f32 {
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + ((b - a) * t)
 }
+
 #[derive(PartialEq)]
 enum BoundaryAction {
     Neighbour,
     NegativeX,
-    NegativeY
+    NegativeY,
 }
 
 #[wasm_bindgen]
@@ -53,14 +53,17 @@ impl Fluid {
     pub fn new(resolution: u32) -> Fluid {
         let dt = 0.001f32;
         let iterations = 10;
-        let resolution = resolution;
-        let area = resolution as usize * resolution as usize;
+        let area = resolution.pow(2) as usize;
+        
+        // density
+        let d = vec![0.0f32; area];
         let d0: Vec<f32> = vec![0.0f32; area];
+        // velocity u
         let u = vec![0.0f32; area];
         let u0 = vec![0.0f32; area];
+        // velocity v
         let v = vec![0.0f32; area];
         let v0 = vec![0.0f32; area];
-        let d = vec![0.0f32; area];
 
         Fluid {
             dt,
@@ -99,11 +102,11 @@ impl Fluid {
         unsafe { Float32Array::view(&self.v0) }
     }
 
-    fn diffuse(x: &mut [f32], x0: &[f32], dt: f32, iterations: u32, n: u32) {
+    fn diffuse(x: &mut [f32], x0: &[f32], dt: f32, iter: u32, n: u32) {
         let diff = 0.005f32;
         let a = dt * diff * (n * n) as f32;
 
-        for _k in 0..iterations {
+        for _k in 0..iter {
             for j in 1..n - 1 {
                 for i in 1..n - 1 {
                     let neighbours = x[addr(i - 1, j, n)]
@@ -123,16 +126,8 @@ impl Fluid {
 
         for j in 1..n - 1 {
             for i in 1..n - 1 {
-                let xp = clamp_ab(
-                    i as f32 - dt0 * u[addr(i, j, n)],
-                    1.5f32,
-                    n as f32 - 2.5f32,
-                );
-                let yp = clamp_ab(
-                    j as f32 - dt0 * v[addr(i, j, n)],
-                    1.5f32,
-                    n as f32 - 2.5f32,
-                );
+                let xp = clamp_ab(i as f32 - dt0 * u[addr(i, j, n)], 1.5f32, n as f32 - 2.5f32);
+                let yp = clamp_ab(j as f32 - dt0 * v[addr(i, j, n)], 1.5f32, n as f32 - 2.5f32);
                 let x0 = xp.floor() as u32;
                 let x1 = x0 + 1;
                 let y0 = yp.floor() as u32;
@@ -149,7 +144,14 @@ impl Fluid {
         Fluid::set_boundary(d, BoundaryAction::Neighbour, n)
     }
 
-    fn project(u: &mut [f32], v: &mut [f32], p: &mut [f32], d: &mut [f32], iterations: u32, n: u32) {
+    fn project(
+        u: &mut [f32],
+        v: &mut [f32],
+        p: &mut [f32],
+        d: &mut [f32],
+        iter: u32,
+        n: u32,
+    ) {
         let h = 1.0f32 / n as f32;
 
         for j in 1..n - 1 {
@@ -164,7 +166,7 @@ impl Fluid {
         Fluid::set_boundary(d, BoundaryAction::Neighbour, n);
         Fluid::set_boundary(p, BoundaryAction::Neighbour, n);
 
-        for _k in 0..iterations {
+        for _k in 0..iter {
             for j in 1..n - 1 {
                 for i in 1..n - 1 {
                     p[addr(i, j, n)] = (d[addr(i, j, n)]
@@ -190,8 +192,14 @@ impl Fluid {
     }
 
     fn set_boundary(x: &mut [f32], action: BoundaryAction, n: u32) {
-        let xm = match action { BoundaryAction::NegativeX => -1.0f32, _ => 1.0f32 };
-        let ym = match action { BoundaryAction::NegativeY => -1.0f32, _ => 1.0f32 };
+        let xm = match action {
+            BoundaryAction::NegativeX => -1.0f32,
+            _ => 1.0f32,
+        };
+        let ym = match action {
+            BoundaryAction::NegativeY => -1.0f32,
+            _ => 1.0f32,
+        };
 
         for i in 1..n {
             x[addr(0, i, n)] = xm * x[addr(1, i, n)];
@@ -205,10 +213,18 @@ impl Fluid {
         x[addr(n - 1, n - 1, n)] = 0.5 * (x[addr(n - 1, n - 2, n)] + x[addr(n - 2, n - 1, n)]);
     }
 
-    fn density_tick(x0: &mut Vec<f32>, x: &mut Vec<f32>, u: &Vec<f32>, v: &Vec<f32>, dt: f32, iterations: u32, n: u32) {
+    fn density_tick(
+        x0: &mut Vec<f32>,
+        x: &mut Vec<f32>,
+        u: &Vec<f32>,
+        v: &Vec<f32>,
+        dt: f32,
+        iter: u32,
+        n: u32,
+    ) {
         add_array(x, x0);
         std::mem::swap(x0, x);
-        Fluid::diffuse(x, x0, dt, iterations, n);
+        Fluid::diffuse(x, x0, dt, iter, n);
         std::mem::swap(x0, x);
         Fluid::advect(x, x0, u, v, dt, n);
     }
@@ -219,19 +235,26 @@ impl Fluid {
         u: &mut Vec<f32>,
         v: &mut Vec<f32>,
         dt: f32,
-        iterations: u32,
-        n: u32
+        iter: u32,
+        n: u32,
     ) {
         add_array(u, u0);
         add_array(v, v0);
-        Fluid::diffuse(u0, u, dt, iterations, n);
-        Fluid::diffuse(v0, v, dt, iterations, n);
-        Fluid::project(u, v, u0, v0, iterations, n);
+        Fluid::diffuse(u0, u, dt, iter, n);
+        Fluid::diffuse(v0, v, dt, iter, n);
+        Fluid::project(u, v, u0, v0, iter, n);
         std::mem::swap(u0, u);
         std::mem::swap(v0, v);
         Fluid::advect(u, u0, &u0.clone(), v0, dt, n);
         Fluid::advect(v, v0, u0, &v0.clone(), dt, n);
-        Fluid::project(u, v, u0, v0, iterations, n);
+        Fluid::project(u, v, u0, v0, iter, n);
+    }
+
+    fn reset_arrays(&mut self) {
+        let area: usize = self.resolution.pow(2) as usize;
+        self.d0 = vec![0.0f32; area];
+        self.u0 = vec![0.0f32; area];
+        self.v0 = vec![0.0f32; area];
     }
 
     pub fn tick(&mut self) {
@@ -242,7 +265,7 @@ impl Fluid {
             &mut self.v,
             self.dt,
             self.iterations,
-            self.resolution
+            self.resolution,
         );
         Fluid::density_tick(
             &mut self.d0,
@@ -251,12 +274,9 @@ impl Fluid {
             &self.v,
             self.dt,
             self.iterations,
-            self.resolution
+            self.resolution,
         );
 
-        let area: usize = self.resolution as usize * self.resolution as usize;
-        self.d0 = vec![0.0f32; area];
-        self.u0 = vec![0.0f32; area];
-        self.v0 = vec![0.0f32; area];
+        self.reset_arrays();
     }
 }
