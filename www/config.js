@@ -120,7 +120,7 @@ const config = {
     resolution: 100,
     iterations: 10,
     brushRadius: 10,
-    callback: (refresh = false) => {},
+    callback: (reinit = false) => {},
 }
 
 export default config;

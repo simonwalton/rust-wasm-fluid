@@ -1,5 +1,6 @@
 mod fluid;
-mod utils;
+mod util;
+mod field;
 
 use wasm_bindgen::prelude::*;
 
@@ -9,13 +10,4 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, wasm-fluid! lol");
-}
-
-pub fn console(str: &str) {
-    log(str);
 }

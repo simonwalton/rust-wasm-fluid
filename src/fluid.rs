@@ -2,6 +2,9 @@ use std::u32;
 use js_sys::Float32Array;
 use wasm_bindgen::prelude::*;
 
+use crate::util::add_array;
+use crate::field::{diffuse, project, advect};
+
 #[wasm_bindgen]
 pub struct Fluid {
     dt: f32,            // time difference per tick
@@ -12,40 +15,7 @@ pub struct Fluid {
     v: Vec<f32>,        // vector field v component
     v0: Vec<f32>,       // vector field v component (alternate)
     d: Vec<f32>,        // density field
-    d0: Vec<f32>        // density field (alternate),
-}
-
-fn add_array(a: &mut [f32], b: &[f32]) {
-    for i in 0..a.len() {
-        a[i] += b[i];
-    }
-}
-
-#[inline(always)]
-fn addr(x: u32, y: u32, n: u32) -> usize {
-    (x + (y * n)) as usize
-}
-
-#[inline(always)]
-fn clamp(x: f32) -> f32 {
-    x.max(0.0f32).min(1.0f32)
-}
-
-#[inline(always)]
-fn clamp_ab(x: f32, a: f32, b: f32) -> f32 {
-    x.max(a).min(b)
-}
-
-#[inline(always)]
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + ((b - a) * t)
-}
-
-#[derive(PartialEq)]
-enum BoundaryAction {
-    Neighbour,
-    NegativeX,
-    NegativeY,
+    d0: Vec<f32>        // density field (alternate)
 }
 
 #[wasm_bindgen]
@@ -102,117 +72,6 @@ impl Fluid {
         unsafe { Float32Array::view(&self.v0) }
     }
 
-    fn diffuse(x: &mut [f32], x0: &[f32], dt: f32, iter: u32, n: u32) {
-        let diff = 0.005f32;
-        let a = dt * diff * (n * n) as f32;
-
-        for _k in 0..iter {
-            for j in 1..n - 1 {
-                for i in 1..n - 1 {
-                    let neighbours = x[addr(i - 1, j, n)]
-                        + x[addr(i + 1, j, n)]
-                        + x[addr(i, j - 1, n)]
-                        + x[addr(i, j + 1, n)];
-                    x[addr(i, j, n)] =
-                        clamp((x0[addr(i, j, n)] + a * neighbours) / (1.0f32 + 4.0f32 * a));
-                }
-            }
-            Fluid::set_boundary(x, BoundaryAction::Neighbour, n)
-        }
-    }
-
-    fn advect(d: &mut [f32], d0: &[f32], u: &[f32], v: &[f32], dt: f32, n: u32) {
-        let dt0 = dt * n as f32;
-
-        for j in 1..n - 1 {
-            for i in 1..n - 1 {
-                let xp = clamp_ab(i as f32 - dt0 * u[addr(i, j, n)], 1.5f32, n as f32 - 2.5f32);
-                let yp = clamp_ab(j as f32 - dt0 * v[addr(i, j, n)], 1.5f32, n as f32 - 2.5f32);
-                let x0 = xp.floor() as u32;
-                let x1 = x0 + 1;
-                let y0 = yp.floor() as u32;
-                let y1 = y0 + 1;
-
-                d[addr(i, j, n)] = lerp(
-                    lerp(d0[addr(x0, y0, n)], d0[addr(x0, y1, n)], yp - y0 as f32),
-                    lerp(d0[addr(x1, y0, n)], d0[addr(x1, y1, n)], yp - y0 as f32),
-                    xp - x0 as f32,
-                )
-            }
-        }
-
-        Fluid::set_boundary(d, BoundaryAction::Neighbour, n)
-    }
-
-    fn project(
-        u: &mut [f32],
-        v: &mut [f32],
-        p: &mut [f32],
-        d: &mut [f32],
-        iter: u32,
-        n: u32,
-    ) {
-        let h = 1.0f32 / n as f32;
-
-        for j in 1..n - 1 {
-            for i in 1..n - 1 {
-                d[addr(i, j, n)] = -0.5
-                    * h
-                    * (u[addr(i + 1, j, n)] - u[addr(i - 1, j, n)] + v[addr(i, j + 1, n)]
-                        - v[addr(i, j - 1, n)]);
-                p[addr(i, j, n)] = 0.0f32;
-            }
-        }
-        Fluid::set_boundary(d, BoundaryAction::Neighbour, n);
-        Fluid::set_boundary(p, BoundaryAction::Neighbour, n);
-
-        for _k in 0..iter {
-            for j in 1..n - 1 {
-                for i in 1..n - 1 {
-                    p[addr(i, j, n)] = (d[addr(i, j, n)]
-                        + p[addr(i - 1, j, n)]
-                        + p[addr(i + 1, j, n)]
-                        + p[addr(i, j - 1, n)]
-                        + p[addr(i, j + 1, n)])
-                        / 4.0f32;
-                }
-            }
-            Fluid::set_boundary(p, BoundaryAction::Neighbour, n)
-        }
-
-        for j in 1..n - 1 {
-            for i in 1..n - 1 {
-                u[addr(i, j, n)] -= 0.5 * (p[addr(i + 1, j, n)] - p[addr(i - 1, j, n)]) / h;
-                v[addr(i, j, n)] -= 0.5 * (p[addr(i, j + 1, n)] - p[addr(i, j - 1, n)]) / h;
-            }
-        }
-
-        Fluid::set_boundary(u, BoundaryAction::NegativeX, n);
-        Fluid::set_boundary(v, BoundaryAction::NegativeY, n);
-    }
-
-    fn set_boundary(x: &mut [f32], action: BoundaryAction, n: u32) {
-        let xm = match action {
-            BoundaryAction::NegativeX => -1.0f32,
-            _ => 1.0f32,
-        };
-        let ym = match action {
-            BoundaryAction::NegativeY => -1.0f32,
-            _ => 1.0f32,
-        };
-
-        for i in 1..n {
-            x[addr(0, i, n)] = xm * x[addr(1, i, n)];
-            x[addr(n - 1, i, n)] = xm * x[addr(n - 2, i, n)];
-            x[addr(i, 0, n)] = ym * x[addr(i, 1, n)];
-            x[addr(i, n - 1, n)] = ym * x[addr(i, n - 2, n)];
-        }
-        x[addr(0, 0, n)] = 0.5 * (x[addr(1, 0, n)] + x[addr(0, 1, n)]);
-        x[addr(n - 1, 0, n)] = 0.5 * (x[addr(n - 2, 0, n)] + x[addr(n - 1, 1, n)]);
-        x[addr(0, n - 1, n)] = 0.5 * (x[addr(0, n - 2, n)] + x[addr(1, n - 1, n)]);
-        x[addr(n - 1, n - 1, n)] = 0.5 * (x[addr(n - 1, n - 2, n)] + x[addr(n - 2, n - 1, n)]);
-    }
-
     fn density_tick(
         x0: &mut Vec<f32>,
         x: &mut Vec<f32>,
@@ -224,9 +83,9 @@ impl Fluid {
     ) {
         add_array(x, x0);
         std::mem::swap(x0, x);
-        Fluid::diffuse(x, x0, dt, iter, n);
+        diffuse(x, x0, dt, iter, n);
         std::mem::swap(x0, x);
-        Fluid::advect(x, x0, u, v, dt, n);
+        advect(x, x0, u, v, dt, n);
     }
 
     fn velocity_tick(
@@ -240,14 +99,14 @@ impl Fluid {
     ) {
         add_array(u, u0);
         add_array(v, v0);
-        Fluid::diffuse(u0, u, dt, iter, n);
-        Fluid::diffuse(v0, v, dt, iter, n);
-        Fluid::project(u, v, u0, v0, iter, n);
+        diffuse(u0, u, dt, iter, n);
+        diffuse(v0, v, dt, iter, n);
+        project(u, v, u0, v0, iter, n);
         std::mem::swap(u0, u);
         std::mem::swap(v0, v);
-        Fluid::advect(u, u0, &u0.clone(), v0, dt, n);
-        Fluid::advect(v, v0, u0, &v0.clone(), dt, n);
-        Fluid::project(u, v, u0, v0, iter, n);
+        advect(u, u0, &u0.clone(), v0, dt, n);
+        advect(v, v0, u0, &v0.clone(), dt, n);
+        project(u, v, u0, v0, iter, n);
     }
 
     fn reset_arrays(&mut self) {
@@ -280,3 +139,4 @@ impl Fluid {
         self.reset_arrays();
     }
 }
+
