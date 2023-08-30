@@ -9,7 +9,7 @@ There are numerous better Naiver-Stokes solvers out there that'll run on GPUs, s
 
 ## Live demo
 
-The static assets are published using Github Pages here. 
+Everything's built and published to Github Pages on mainline push. [Visit it here](https://simonwalton.github.io/rust-wasm-fluid/). 
 
 ## Usage
 
