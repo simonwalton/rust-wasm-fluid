@@ -1,0 +1,28 @@
+name: Build and Publish
+on: [push]
+permissions:
+  contents: write
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Build Rust 🔧
+        run: |
+          cargo install wasm-pack
+          cargo build
+          wasm-pack build --release
+
+      - name: Build NPM 🔧
+        run: |
+          cd www
+          npm install
+          npm run build
+          cd -
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: www/dist 
